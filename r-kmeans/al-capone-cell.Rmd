@@ -3,14 +3,15 @@ title: "R Al Capone Cell Notebook"
 output: html_notebook
 ---
 
-This notebook reads the Al Capone Cell, and display variations of it.
+This notebook reads the Al Capone Cell, and displays variations of it.
 
 ```{r}
 library(EBImage)
+library(CRImage)
 color_img <- readImage('../data/al_capone_cell.jpg')
-blue_channel <- channel(color_img, 'blue')
-green_channel <- channel(color_img, 'green')
-red_channel <- channel(color_img, 'red')
+blue_channel <- EBImage::channel(color_img, 'blue')
+green_channel <- EBImage::channel(color_img, 'green')
+red_channel <- EBImage::channel(color_img, 'red')
 ```
 
 ```{r}
@@ -24,9 +25,9 @@ display(blue_channel, method="raster")
 ```{r}
 par(mfrow=c(2,2))
 display(color_img, method="raster")
-display(channel(red_channel, 'asred'), method="raster")
-display(channel(green_channel, 'asgreen'), method="raster")
-display(channel(blue_channel, 'asblue'), method="raster")
+display(EBImage::channel(red_channel, 'asred'), method="raster")
+display(EBImage::channel(green_channel, 'asgreen'), method="raster")
+display(EBImage::channel(blue_channel, 'asblue'), method="raster")
 ```
 ```{r}
 par(mfrow=c(2,2))

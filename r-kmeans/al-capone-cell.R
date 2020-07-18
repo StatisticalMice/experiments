@@ -7,6 +7,7 @@
 # BiocManager::install("CRImage")
 
 library(EBImage)
+library(CRImage)
 color_img <- readImage('../data/al_capone_cell.jpg')
 
 # image histogram
@@ -18,14 +19,24 @@ display(color_img, method="raster")
 # dimensions of the image
 dim(color_img)
 
-blue_channel <- channel(color_img, 'blue')
-green_channel <- channel(color_img, 'green')
-red_channel <- channel(color_img, 'red')
+blue_channel <- EBImage::channel(color_img, 'blue')
+green_channel <- EBImage::channel(color_img, 'green')
+red_channel <- EBImage::channel(color_img, 'red')
 
-display(channel(red_channel, 'asred'), method="raster")
-display(channel(green_channel, 'asgreen'), method="raster")
-display(channel(blue_channel, 'asblue'), method="raster")
+display(EBImage::channel(red_channel, 'asred'), method="raster")
+display(EBImage::channel(green_channel, 'asgreen'), method="raster")
+display(EBImage::channel(blue_channel, 'asblue'), method="raster")
 
+# Get 2D vector of colors
+color_img_vec <-as.array(color_img)
+dim(color_img_vec) <- c(1800*1200, 3)
 
+# Run kmeans 
+clusters <- kmeans(color_img_vec, 10)
 
-
+# Get results
+res <- fitted(clusters)
+dim(res) <- c(1800, 1200, 3)
+res <- Image(res)
+colorMode(res) <- Color
+display(res)
