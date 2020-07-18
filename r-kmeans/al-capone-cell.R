@@ -2,6 +2,10 @@
 # EBImage can do it.
 # http://bioconductor.org/packages/release/bioc/vignettes/EBImage/inst/doc/EBImage-introduction.html
 
+# installing:
+# BiocManager::install("EBImage")
+# BiocManager::install("CRImage")
+
 library(EBImage)
 color_img <- readImage('../data/al_capone_cell.jpg')
 

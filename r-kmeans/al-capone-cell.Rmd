@@ -28,4 +28,11 @@ display(channel(red_channel, 'asred'), method="raster")
 display(channel(green_channel, 'asgreen'), method="raster")
 display(channel(blue_channel, 'asblue'), method="raster")
 ```
+```{r}
+par(mfrow=c(2,2))
+hist(color_img)
+hist(red_channel)
+hist(green_channel)
+hist(blue_channel)
+```
 

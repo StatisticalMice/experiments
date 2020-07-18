@@ -1,3 +1,6 @@
 .DS_Store
-
+data_local_only/
+*/.ipynb_checkpoints
 .Rproj.user
+*.nb.html
+
