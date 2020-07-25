@@ -1,0 +1,66 @@
+---
+title: "Data visualisation of Titanic passengers (training set)"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(patchwork)
+library(visdat)
+```
+
+```{r}
+data <- read_csv('../data/titanic/train.csv', col_types = cols(
+  Survived = col_logical()
+)) %>% relocate(Name, .after = last_col())
+glimpse(data)
+```
+
+```{r}
+vis_miss(data)
+```
+
+```{r}
+mybarplot <- function(variable) {
+  ggplot(data, aes_string(x=variable)) +
+    geom_bar() +
+    geom_label(stat = "count", aes(label=..count..)) +
+    ylim(0, 600)
+}
+
+(mybarplot('Survived') |
+  mybarplot('Pclass') |
+  mybarplot('Sex')) +
+  plot_annotation(
+    title = 'Titanic statistics',
+    subtitle = paste('Passengers in the dataset: ',
+                     nrow(data), sep = '')
+  )
+```
+
+
+```{r}
+ggplot(data, aes(x=Age)) +
+  geom_histogram(binwidth = 10, col = 'black')
+```
+
+```{r}
+ggplot(data, aes(x=Fare)) +
+  geom_histogram(binwidth = 10, col = 'black')
+```
+
+```{r}
+ggplot(data, aes(x=Embarked)) +
+    geom_bar() +
+    geom_label(stat = "count", aes(label=..count..))
+```
+```{r}
+ggplot(data, aes(x=SibSp)) +
+    geom_bar() +
+    geom_label(stat = "count", aes(label=..count..))
+```
+```{r}
+ggplot(data, aes(x=Parch)) +
+    geom_bar() +
+    geom_label(stat = "count", aes(label=..count..))
+```
