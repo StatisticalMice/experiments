@@ -10,57 +10,84 @@ library(visdat)
 ```
 
 ```{r}
-data <- read_csv('../data/titanic/train.csv', col_types = cols(
+df <- read_csv('../data/titanic/train.csv', col_types = cols(
   Survived = col_logical()
 )) %>% relocate(Name, .after = last_col())
-glimpse(data)
+glimpse(df)
 ```
 
 ```{r}
-vis_miss(data)
+vis_miss(df)
 ```
 
 ```{r}
-mybarplot <- function(variable) {
-  ggplot(data, aes_string(x=variable)) +
-    geom_bar() +
-    geom_label(stat = "count", aes(label=..count..)) +
-    ylim(0, 600)
+mybarplot <- function(variable, l) {
+  ggplot(df, aes_string(x=variable)) +
+    geom_bar(aes(fill=Survived)) +
+    ylim(0, 600)+
+    xlab(label=l)+
+    scale_fill_brewer(palette = "Pastel1") +
+    theme_classic() +
+    theme(axis.title.y = element_blank())
 }
 
-(mybarplot('Survived') |
-  mybarplot('Pclass') |
-  mybarplot('Sex')) +
-  plot_annotation(
-    title = 'Titanic statistics',
-    subtitle = paste('Passengers in the dataset: ',
-                     nrow(data), sep = '')
-  )
+(mybarplot('Survived','Survived') |
+  mybarplot('Pclass','Ticket class') |
+  mybarplot('Sex','Sex')) +
+  plot_annotation(subtitle = paste('Passengers in the dataset:', nrow(df)))+
+  plot_layout(guides = 'collect')
 ```
 
 
 ```{r}
-ggplot(data, aes(x=Age)) +
-  geom_histogram(binwidth = 10, col = 'black')
+df_age <- drop_na(df, Age)
+df_no_age <- filter(df, is.na(Age))
+
+age_plot <- ggplot(df_age, aes(x=Age)) +
+  geom_histogram(aes(fill=Survived), binwidth = 10) +
+  ylim(0,250)
+na_plot <- ggplot(df_no_age, aes(x='NA')) +
+  geom_bar(aes(fill=Survived)) +
+  ylim(0,250)
+
+(age_plot + na_plot) *
+  theme_classic() *
+  theme(axis.title.y = element_blank()) *
+  scale_fill_brewer(palette = "Pastel1") +
+  plot_annotation(subtitle = paste('Passengers with known age: ',nrow(df_age), sep = '')) +
+  plot_layout(guides = 'collect', widths = c(10, 1))
+
+```
+
+
+```{r}
+ggplot(df, aes(x=Fare)) +
+  geom_histogram(aes(fill=Survived), binwidth = 50) +
+  theme_classic() +
+  theme(axis.title.y = element_blank()) +
+  scale_fill_brewer(palette = "Pastel1")
 ```
 
 ```{r}
-ggplot(data, aes(x=Fare)) +
-  geom_histogram(binwidth = 10, col = 'black')
-```
-
-```{r}
-ggplot(data, aes(x=Embarked)) +
-    geom_bar() +
-    geom_label(stat = "count", aes(label=..count..))
+ggplot(df, aes(x=Embarked)) +
+    geom_bar(aes(fill=Survived))  +
+  theme_classic() +
+  theme(axis.title.y = element_blank()) +
+  scale_fill_brewer(palette = "Pastel1")
 ```
 ```{r}
-ggplot(data, aes(x=SibSp)) +
-    geom_bar() +
-    geom_label(stat = "count", aes(label=..count..))
+ggplot(df, aes(x=SibSp)) +
+    geom_bar(aes(fill=Survived)) +
+  xlab(label='# of siblings / spouses') +
+  theme_classic() +
+  theme(axis.title.y = element_blank()) +
+  scale_fill_brewer(palette = "Pastel1")
 ```
 ```{r}
-ggplot(data, aes(x=Parch)) +
-    geom_bar() +
-    geom_label(stat = "count", aes(label=..count..))
+ggplot(df, aes(x=Parch)) +
+  geom_bar(aes(fill=Survived)) +
+  xlab(label='# of parents / children')+
+  theme_classic() +
+  theme(axis.title.y = element_blank()) +
+  scale_fill_brewer(palette = "Pastel1")
 ```
