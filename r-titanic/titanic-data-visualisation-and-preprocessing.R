@@ -119,46 +119,45 @@ to_ascii <- function(x) {
   stri_trans_general(str = x, id = "Latin-ASCII")
 }
 
-data_first_class <- bind_rows(
-  select(kaggle_first_class, 
-         PassengerId, Name, Age),
-  convert_wiki_age(wiki_first_class) %>%
-    select(PassengerId=wiki_id, Name, Age=age))
-data_first_class$Name <- sapply(data_first_class$Name, to_ascii)
+match_data_kaggle <- bind_rows(
+  select(kaggle_first_class, PassengerId, Name, Age),
+  select(kaggle_second_class, PassengerId, Name, Age),
+  select(kaggle_third_class, PassengerId, Name, Age),
+)
 
-data_second_class <- bind_rows(
-  select(kaggle_second_class, 
-         PassengerId, Name, Age),
-  convert_wiki_age(wiki_second_class) %>%
-    select(PassengerId=wiki_id, Name, Age=age))
-data_second_class$Name <- sapply(data_second_class$Name, to_ascii)
+match_data_wiki <- bind_rows(
+  convert_wiki_age(wiki_first_class),
+  convert_wiki_age(wiki_second_class),
+  convert_wiki_age(wiki_third_class) 
+) %>% select(PassengerId=wiki_id, Name, Age=age)
+match_data_wiki$Name <- sapply(match_data_wiki$Name, to_ascii)
 
-data_third_class <- bind_rows(
-  select(kaggle_third_class, 
-         PassengerId, Name, Age),
-  convert_wiki_age(wiki_third_class) %>%
-    select(PassengerId=wiki_id, Name, Age=age))
-data_third_class$Name <- sapply(data_third_class$Name, to_ascii)
+match_data_all <- bind_rows(
+  match_data_kaggle,
+  match_data_wiki
+)
 
 #' ## Combine data for first class passengers
 
 library(quanteda)
 
-c1 <- corpus(data_first_class, docid_field = 'PassengerId', text_field = 'Name') 
-docvars(c1, "Class") <- 1
-c2 <- corpus(data_second_class, docid_field = 'PassengerId', text_field = 'Name') 
-docvars(c1, "Class") <- 2
-c3 <-corpus(data_third_class, docid_field = 'PassengerId', text_field = 'Name') 
-docvars(c1, "Class") <- 3
-passenger_corpus <- c1+c2+c3
+corpus_passengers <- corpus(match_data_all, 
+                            docid_field = 'PassengerId', 
+                            text_field = 'Name')
 
-passenger_dfm <- dfm(passenger_corpus, remove_punct = TRUE)
-topfeatures(passenger_dfm)
+dfm_passengers <- dfm(corpus_passengers, remove_punct = TRUE)
 
-tstat_sim <- textstat_simil(passenger_dfm, passenger_dfm,
-                            method = "cosine", margin = "features")
+tstat_sim <- textstat_simil(dfm_passengers, 
+                            method = "cosine", 
+                            margin = "documents")
+similarities_passengers <- as_tibble(tstat_sim) %>% 
+  mutate(document1=as.numeric(as.character(document1)), 
+         document2=as.numeric(as.character(document2))) %>%
+  filter(document1<10000, document2>10000)
 
+View(similarities_passengers)
 
-
-summary(passenger_corpus)
-texts(c1)
+best_fits <- similarities_passengers %>%
+  group_by(document1) %>%
+  top_n(1, cosine)
+View(best_fits)
