@@ -16,148 +16,175 @@
 library(tidyverse)
 library(patchwork)
 library(visdat)
-
-#' # Read Kaggle data
-
-df_train <- read_csv('../data/titanic/train.csv') %>%
-  add_column(DataSource = 'train')
-
-df_test <- read_csv('../data/titanic/test.csv') %>%
-  add_column(Survived = 0, .before = 'Pclass') %>%
-  add_column(DataSource = 'test')
-
-df_kaggle <- bind_rows(df_train, df_test)
-kaggle_first_class <- df_kaggle %>% filter(Pclass==1)
-kaggle_second_class <- df_kaggle %>% filter(Pclass==2)
-kaggle_third_class <- df_kaggle %>% filter(Pclass==3)
-
-#' # Read additional data from Wikipedia
-
 library(stringr)
 library(xml2)
 library(rvest)
 library(stringi)
+library(purrr)
 
-passengers_list_on_wikipedia <- 'https://en.wikipedia.org/wiki/Passengers_of_the_RMS_Titanic'
-passengers_list_html <- read_html(passengers_list_on_wikipedia)
+df_kaggle <- bind_rows(
+  read_csv('../data/titanic/train.csv') %>%
+    add_column(DataSource = 'train'),
+  read_csv('../data/titanic/test.csv') %>%
+    add_column(Survived = NaN, .before = 'Pclass') %>%
+    add_column(DataSource = 'test')
+)
 
 read_as_tibble <- function(n) {
   xpath <-str_c(c('//*[@id="mw-content-text"]/div[1]/table[', n, ']'), 
                 collapse = '')
   
-  t <- passengers_list_html %>% 
+  t <- read_html('https://en.wikipedia.org/wiki/Passengers_of_the_RMS_Titanic') %>% 
     rvest::html_nodes('body') %>% 
     xml2::xml_find_all(xpath) %>%
     html_table(fill = T)
   t <- t[[1]]
   
-  tibble(name = t$Name,
-         age = t$Age,
-         hometown = t$Hometown,
-         destination = t$Destination)
+  tibble(Name = t$Name,
+         Age = t$Age,
+         Hometown = t$Hometown,
+         Destination = t$Destination) %>%
+    add_column(DataSource = 'wiki')
 }
 
-fetch_from_wiki_and_store_locally <- function() {
-  wiki_first_class <- read_as_tibble(2) 
-  wiki_second_class <- read_as_tibble(3)
-  wiki_third_class <- read_as_tibble(4)
-  save(wiki_first_class,
-       wiki_second_class,
-       wiki_third_class,
-       file = 'passenger-tables-from-wikipedia.RData')  
+fetch_data_and_store_locally <- function() {
+  df_wiki <- bind_rows(
+    read_as_tibble(1) %>%
+      add_column(Pclass = 1),
+    read_as_tibble(2) %>%
+      add_column(Pclass = 2),
+    read_as_tibble(3) %>%
+      add_column(Pclass = 3)
+  )
+  save(df_wiki, file = 'passenger-tables-from-wikipedia.RData')  
 }
-fetch_from_wiki_and_store_locally()
-load('passenger-tables-from-wikipedia.RData')
+fetch_data_and_store_locally()
+load('passenger-tables.RData')
 
-cleanup_wiki_names <- function(df) {
-  df %>%
-    mutate(Name = str_replace(Name, 'and \\w*, ', '')) %>%
-    mutate(Name = str_replace(Name, '\\[\\d\\d\\]', '')) %>%
-    mutate(Name = str_replace(Name, '\\[\\d\\d\\]', '')) %>%
-    mutate(Name = str_replace(Name, 'née|alias|nee', ''))
-}
+df_wiki <- df_wiki %>%
+  # [12] ->
+  mutate(Name = str_replace_all(Name, '\\[\\d\\d\\]', '')) %>%
+  # the following messes up separate() if not fixed
+  mutate(Name = str_replace(Name, 'Beane.', 'Beane,')) %>%
+  separate(Name, into=c('Name_Last', 'Name_Rest'), sep = ',\ ', extra = 'merge')
 
-wiki_first_class <- wiki_first_class %>%
-  add_column(wiki_id = 1:nrow(wiki_first_class)+11000, .before = 'name') %>%
-  rename(Name=name) %>%
-  cleanup_wiki_names()
-
-wiki_second_class <- wiki_second_class %>%
-  add_column(wiki_id = 1:nrow(wiki_second_class)+12000, .before = 'name') %>%
-  rename(Name=name) %>%
-  cleanup_wiki_names()
-
-wiki_third_class <- wiki_third_class %>%
-  add_column(wiki_id = 1:nrow(wiki_third_class)+13000, .before = 'name') %>%
-  rename(Name=name) %>%
-  cleanup_wiki_names()
-
-#' # Combine age from the two datasets
+df_kaggle <- df_kaggle %>%
+  # ")" -> )
+  mutate(Name = str_replace(Name, '"\\)"', '\\)')) %>%
+  # "" ->
+  mutate(Name = str_replace(Name, '\\"\\"', '')) %>%
+  # )" -> ")
+  mutate(Name = str_replace(Name, '\\)\\"', '\\"\\)')) %>%
+  separate(Name, into=c('Name_Last', 'Name_Rest'), sep = ',\ ')
 
 convert_wiki_age <- function(df) {
-  age_months <- filter(df, grepl('mo', df$age)) %>% 
-    mutate(age = case_when(
-      age=='1 mo.' ~ 1/12,
-      age=='2 mo.' ~ 2/12,
-      age=='3 mo.' ~ 3/12,
-      age=='4 mo.' ~ 4/12,
-      age=='5 mo.' ~ 5/12,
-      age=='6 mo.' ~ 6/12,
-      age=='7 mo.' ~ 7/12,
-      age=='8 mo.' ~ 8/12,
-      age=='9 mo.' ~ 9/12,
-      age=='10 mo.' ~ 10/12,
-      age=='11 mo.' ~ 11/12,
-      age=='12 mo.' ~ 12/12)) %>%
-    mutate(age = round(age, digits=1))
-  age_years <- filter(df, !grepl('mo', df$age))
-  age_years$age <- as.double(age_years$age)
+  age_months <- filter(df, grepl('mo', df$Age)) %>% 
+    mutate(Age = case_when(
+      Age=='1 mo.' ~ 1/12,
+      Age=='2 mo.' ~ 2/12,
+      Age=='3 mo.' ~ 3/12,
+      Age=='4 mo.' ~ 4/12,
+      Age=='5 mo.' ~ 5/12,
+      Age=='6 mo.' ~ 6/12,
+      Age=='7 mo.' ~ 7/12,
+      Age=='8 mo.' ~ 8/12,
+      Age=='9 mo.' ~ 9/12,
+      Age=='10 mo.' ~ 10/12,
+      Age=='11 mo.' ~ 11/12,
+      Age=='12 mo.' ~ 12/12)) %>%
+    mutate(Age = round(Age, digits=1))
+  age_years <- filter(df, !grepl('mo', df$Age))
+  age_years$Age <- as.double(age_years$Age)
   bind_rows(age_months, age_years)
 }
 
-to_ascii <- function(x) {
-  stri_trans_general(str = x, id = "Latin-ASCII")
-}
+df_wiki <- convert_wiki_age(df_wiki) %>%
+  add_column(PassengerId = 1:nrow(df_wiki)+2000, .before = 1)
 
-match_data_kaggle <- bind_rows(
-  select(kaggle_first_class, PassengerId, Name, Age),
-  select(kaggle_second_class, PassengerId, Name, Age),
-  select(kaggle_third_class, PassengerId, Name, Age),
-)
+df_all <- bind_rows(
+  df_wiki,
+  df_kaggle
+) %>%
+  # "Annie" -> Name_Nick
+  mutate(Name_Nick = str_extract(Name_Rest, pattern = '"(.*?)"')) %>%
+  mutate(Name_Rest = str_remove(Name_Rest, pattern = '"(.*?)"')) %>%
+  # (Marie Eugenie) -> Name_In_Brackets
+  mutate(Name_In_Brackets = str_extract(Name_Rest, pattern = '\\((.*?)\\)')) %>%
+  mutate(Name_Rest = str_remove(Name_Rest, pattern = '\\((.*?)\\)'))
+  
+df_all <- df_all %>%
+  mutate(marker = str_detect(Name_Last, 'and ')) %>%
+  mutate(Name_Last = case_when(
+    marker ~ str_extract(Name_Rest, '\\w*$'),
+    TRUE ~ Name_Last
+  )) %>%
+  mutate(Name_Rest = case_when(
+    marker ~ str_remove(Name_Rest, '\\w*$'),
+    TRUE ~ Name_Rest
+  )) %>%
+  mutate(Name_Title = str_extract(Name_Rest, '^[^\\ ]+')) %>%
+  mutate(Name_Rest = str_remove(Name_Rest, '^[^\\ ]+')) %>%
+  mutate(Name_Title = str_remove(Name_Title, pattern = '\\.'))
 
-match_data_wiki <- bind_rows(
-  convert_wiki_age(wiki_first_class),
-  convert_wiki_age(wiki_second_class),
-  convert_wiki_age(wiki_third_class) 
-) %>% select(PassengerId=wiki_id, Name, Age=age)
-match_data_wiki$Name <- sapply(match_data_wiki$Name, to_ascii)
+df_all <- df_all %>%
+  select(-marker)
+  
+df_all <- df_all %>%
+  relocate(Name_Title, Name_Last, Name_Rest, Name_Nick, Name_In_Brackets, .after=PassengerId)
 
-match_data_all <- bind_rows(
-  match_data_kaggle,
-  match_data_wiki
-)
+df_all <- df_all %>%
+  mutate(Name_In_Brackets = str_remove_all(Name_In_Brackets, pattern = '\\)|\\(') %>% str_squish()) %>%
+  mutate(Name_Nick = str_remove_all(Name_Nick, pattern = '\\"') %>% str_squish()) %>%
+  mutate(Name_Last = str_squish(Name_Last) %>% stri_trans_general(id = "Latin-ASCII")) %>%
+  mutate(Name_Rest = str_squish(Name_Rest) %>% stri_trans_general(id = "Latin-ASCII")) %>%
+  mutate(Name_Title = str_squish(Name_Title)) %>%
+  arrange(Name_Last, Name_Title, Name_Rest)
+  
+df_tmp <- df_all %>%
+  select(PassengerId, Name_Title, Name_Last, Name_Rest, DataSource, Age, Pclass, Name_Nick, Name_In_Brackets)
 
-#' ## Combine data for first class passengers
+df_tmp %>%
+  arrange(Name_Last, Name_Title, Name_Rest) %>%
+  View()
 
-library(quanteda)
+df_kaggle_first_class <- df_all %>% filter(Pclass==1, DataSource!='wiki')
+df_wiki_first_class <- df_all %>% filter(Pclass==1, DataSource=='wiki')
 
-corpus_passengers <- corpus(match_data_all, 
-                            docid_field = 'PassengerId', 
-                            text_field = 'Name')
+df_kaggle_second_class <- df_all %>% filter(Pclass==2, DataSource!='wiki')
+df_wiki_second_class <- df_all %>% filter(Pclass==2, DataSource=='wiki')
 
-dfm_passengers <- dfm(corpus_passengers, remove_punct = TRUE)
+df_kaggle_third_class <- df_all %>% filter(Pclass==2, DataSource!='wiki')
+df_wiki_third_class <- df_all %>% filter(Pclass==3, DataSource=='wiki')
 
-tstat_sim <- textstat_simil(dfm_passengers, 
-                            method = "cosine", 
-                            margin = "documents")
-similarities_passengers <- as_tibble(tstat_sim) %>% 
-  mutate(document1=as.numeric(as.character(document1)), 
-         document2=as.numeric(as.character(document2))) %>%
-  filter(document1<10000, document2>10000)
+left <- df_kaggle_first_class %>% 
+  filter(is.na(Age)) %>%
+  select(PassengerId, Name_Title, Name_Last, DataSource, Name_Rest, Name_Nick, Name_In_Brackets, Age)
+right <- df_wiki_first_class %>%
+  select(Name_Title, Name_Last, DataSource, Name_Rest, Name_Nick, Name_In_Brackets, Age)
+left_join(left, right, by = c('Name_Title', 'Name_Last')) %>%
+  relocate(Name_Rest.x, Name_Rest.y, DataSource.y, .after = Name_Last) %>%
+  View()
 
-View(similarities_passengers)
+left <- df_kaggle_second_class %>% 
+  filter(is.na(Age)) %>%
+  select(PassengerId, Name_Title, Name_Last, DataSource, Name_Rest, Name_Nick, Name_In_Brackets, Age)
+right <- df_wiki_second_class %>%
+  select(Name_Title, Name_Last, DataSource, Name_Rest, Name_Nick, Name_In_Brackets, Age)
+left_join(left, right, by = c('Name_Title', 'Name_Last')) %>%
+  relocate(Name_Rest.x, Name_Rest.y, DataSource.y, .after = Name_Last) %>%
+  View()
 
-best_fits <- similarities_passengers %>%
-  group_by(document1) %>%
-  top_n(1, cosine)
-View(best_fits)
+left <- df_kaggle_third_class %>% 
+  filter(is.na(Age)) %>%
+  select(PassengerId, Name_Title, Name_Last, DataSource, Name_Rest, Name_Nick, Name_In_Brackets, Age)
+right <- df_wiki_third_class %>%
+  select(Name_Title, Name_Last, DataSource, Name_Rest, Name_Nick, Name_In_Brackets, Age)
+left_join(left, right, by = c('Name_Title', 'Name_Last')) %>%
+  relocate(Name_Rest.x, Name_Rest.y, DataSource.y, .after = Name_Last) %>%
+  View()
+
+
+
+
+
+
