@@ -4,4 +4,7 @@ data_local_only/
 .Rproj.user
 *.nb.html
 .Rhistory
+venv-titanic*
+.ipynb_checkpoints
+*.html
 

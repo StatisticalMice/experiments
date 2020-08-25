@@ -9,4 +9,12 @@ Its license is https://creativecommons.org/licenses/by/3.0/deed.en_US
 ## titanic
 
 This directory contains the Titanic Kaggle competition datasets.
+Please check https://www.kaggle.com/c/titanic for details.
+
+## house_prices
+
+This directory contains the data for the following Kaggle competition, please check it for details.
+https://www.kaggle.com/c/house-prices-advanced-regression-techniques
+
+
 
